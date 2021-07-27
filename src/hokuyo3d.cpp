@@ -39,6 +39,7 @@
 #include <string>
 #include <thread>
 
+#include <hokuyo3d/srv/request_point_cloud.hpp>
 #include "rclcpp/executor.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include <sensor_msgs/msg/point_cloud.hpp>
@@ -53,13 +54,10 @@
 class Hokuyo3dNode : public rclcpp::Node
 {
 public:
-  void cbPoint(
-      const vssp::Header &header,
-      const vssp::RangeHeader &range_header,
-      const vssp::RangeIndex &range_index,
-      const boost::shared_array<uint16_t> &index,
-      const boost::shared_array<vssp::XYZI> &points,
-      const boost::posix_time::ptime &time_read)
+  void cbPoint(const vssp::Header& header, const vssp::RangeHeader& range_header,
+               const vssp::RangeIndex& range_index, const boost::shared_array<uint16_t>& index,
+               const boost::shared_array<vssp::XYZI>& points,
+               const boost::posix_time::ptime& time_read)
   {
     if (timestamp_base_.seconds() == rclcpp::Time(0).seconds())
       return;
@@ -70,7 +68,9 @@ public:
       {
         // Start packing PointCloud message
         cloud_.header.frame_id = frame_id_;
-        cloud_.header.stamp = timestamp_base_ + rclcpp::Duration(range_header.line_head_timestamp_ms * 0.001, 0);
+        cloud_.header.stamp =
+            timestamp_base_ + rclcpp::Duration(range_header.line_head_timestamp_ms * 0.001, 0);
+        RCLCPP_INFO(this->get_logger(), "Start packing PointCloud message");
       }
       // Pack PointCloud message
       for (int i = 0; i < index[range_index.nspots]; i++)
@@ -93,14 +93,16 @@ public:
       {
         // Start packing PointCloud2 message
         cloud2_.header.frame_id = frame_id_;
-        cloud2_.header.stamp = timestamp_base_ + rclcpp::Duration(range_header.line_head_timestamp_ms * 0.001, 0);
+        cloud2_.header.stamp =
+            timestamp_base_ + rclcpp::Duration(range_header.line_head_timestamp_ms * 0.001, 0);
+        RCLCPP_INFO(this->get_logger(), "Start packing PointCloud message 2");
         cloud2_.row_step = 0;
         cloud2_.width = 0;
       }
       // Pack PointCloud2 message
       cloud2_.data.resize((cloud2_.width + index[range_index.nspots]) * cloud2_.point_step);
 
-      float *data = reinterpret_cast<float *>(&cloud2_.data[0]);
+      float* data = reinterpret_cast<float*>(&cloud2_.data[0]);
       data += cloud2_.width * cloud2_.point_step / sizeof(float);
       for (int i = 0; i < index[range_index.nspots]; i++)
       {
@@ -129,6 +131,7 @@ public:
         else
         {
           pub_pc_->publish(cloud_);
+          RCLCPP_INFO(this->get_logger(), "Publish 1");
         }
         cloud_stamp_last_ = cloud_.header.stamp;
         cloud_.points.clear();
@@ -143,7 +146,11 @@ public:
         }
         else
         {
+          // cloud2_.header.stamp = this->now();
+          // rclcpp::sleep_for(std::chrono::milliseconds(100));
           pub_pc2_->publish(cloud2_);
+          RCLCPP_INFO_STREAM(this->get_logger(), "clock_type: " << timestamp_base_.get_clock_type());
+          RCLCPP_INFO(this->get_logger(), "Publish 2");
         }
         cloud_stamp_last_ = cloud2_.header.stamp;
         cloud2_.data.clear();
@@ -155,51 +162,51 @@ public:
       line_ = range_header.line;
     }
   }
-  void cbError(
-      const vssp::Header &header,
-      const std::string &message,
-      const boost::posix_time::ptime &time_read)
+  void cbError(const vssp::Header& header, const std::string& message,
+               const boost::posix_time::ptime& time_read)
   {
     RCLCPP_ERROR(this->get_logger(), "%s", message.c_str());
   }
-  void cbPing(
-      const vssp::Header &header,
-      const boost::posix_time::ptime &time_read)
+  void cbPing(const vssp::Header& header, const boost::posix_time::ptime& time_read)
   {
     /*
     const ros::Time now = ros::Time::fromBoost(time_read);
     const ros::Duration delay =
-        ((now - time_ping_) - ros::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001)) * 0.5;
-    const ros::Time base = time_ping_ + delay - ros::Duration(header.received_time_ms * 0.001);
+        ((now - time_ping_) - ros::Duration(header.send_time_ms * 0.001 - header.received_time_ms *
+    0.001)) * 0.5; const ros::Time base = time_ping_ + delay - ros::Duration(header.received_time_ms
+    * 0.001);
     */
     const rclcpp::Time now = this->now();
-    rclcpp::Time delay =
-        rclcpp::Time(((now - time_ping_) - rclcpp::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001, 0)).seconds() * 0.5, 0);
-        
-    const rclcpp::Time base = rclcpp::Time(time_ping_.seconds() + delay.seconds() - header.received_time_ms * 0.001, 0);
+    rclcpp::Time delay = rclcpp::Time(
+        ((now - time_ping_) -
+         rclcpp::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001, 0))
+                .seconds() *
+            0.5,
+        0);
+
+    const rclcpp::Time base =
+        rclcpp::Time(time_ping_.seconds() + delay.seconds() - header.received_time_ms * 0.001, 0);
     timestamp_base_buffer_.push_back(base);
     if (timestamp_base_buffer_.size() > 5)
       timestamp_base_buffer_.pop_front();
 
     auto sorted_timstamp_base = timestamp_base_buffer_;
     std::sort(sorted_timstamp_base.begin(), sorted_timstamp_base.end());
-    
+
     if (timestamp_base_.seconds() == rclcpp::Time(0).seconds())
       timestamp_base_ = sorted_timstamp_base[sorted_timstamp_base.size() / 2];
     else
-      timestamp_base_ += (sorted_timstamp_base[sorted_timstamp_base.size() / 2] - timestamp_base_) * 0.1;
+      timestamp_base_ +=
+          (sorted_timstamp_base[sorted_timstamp_base.size() / 2] - timestamp_base_) * 0.1;
 
     RCLCPP_DEBUG(this->get_logger(), "timestamp_base: %lf", timestamp_base_.seconds());
   }
-  void cbAux(
-      const vssp::Header &header,
-      const vssp::AuxHeader &aux_header,
-      const boost::shared_array<vssp::Aux> &auxs,
-      const boost::posix_time::ptime &time_read)
+  void cbAux(const vssp::Header& header, const vssp::AuxHeader& aux_header,
+             const boost::shared_array<vssp::Aux>& auxs, const boost::posix_time::ptime& time_read)
   {
     if (timestamp_base_.seconds() == rclcpp::Time(0).seconds())
       return;
-    
+
     rclcpp::Time stamp = timestamp_base_ + rclcpp::Duration(aux_header.timestamp_ms * 0.001, 0);
 
     if ((aux_header.data_bitfield & (vssp::AX_MASK_ANGVEL | vssp::AX_MASK_LINACC)) ==
@@ -218,7 +225,8 @@ public:
         imu_.linear_acceleration.z = auxs[i].lin_acc.z;
         if (imu_stamp_last_.seconds() > imu_.header.stamp.sec && !allow_jump_back_)
         {
-          RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Dropping timestamp jump backed imu");
+          RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+                               "Dropping timestamp jump backed imu");
         }
         else
         {
@@ -273,32 +281,35 @@ public:
     }
   }
   Hokuyo3dNode()
-      : Node("hokuyo3d_node"), timestamp_base_(rclcpp::Time(0)), timer_(io_, boost::posix_time::milliseconds(500))
+    : Node("hokuyo3d_node")
+    , timestamp_base_(rclcpp::Time(0))
+    , timer_(io_, boost::posix_time::milliseconds(500))
   {
     parameter_client_ = std::make_shared<rclcpp::SyncParametersClient>(this);
 
-    parameter_subscription_ = parameter_client_->on_parameter_event(std::bind(&Hokuyo3dNode::onParameterEvent, this, std::placeholders::_1));
+    parameter_subscription_ = parameter_client_->on_parameter_event(
+        std::bind(&Hokuyo3dNode::onParameterEvent, this, std::placeholders::_1));
 
     // Setup parameter client
-    while (!parameter_client_->wait_for_service(std::chrono::seconds(5))) {
-      if (!rclcpp::ok()) {
-        RCLCPP_ERROR(
-          this->get_logger(),
-          "Interrupted while waiting for the service. Exiting.");
+    while (!parameter_client_->wait_for_service(std::chrono::seconds(5)))
+    {
+      if (!rclcpp::ok())
+      {
+        RCLCPP_ERROR(this->get_logger(), "Interrupted while waiting for the service. Exiting.");
         rclcpp::shutdown();
       }
-      RCLCPP_INFO(
-        this->get_logger(),
-        "service not available, waiting again...");
+      RCLCPP_INFO(this->get_logger(), "service not available, waiting again...");
     }
 
-    if (this->get_parameter("horizontal_interlace", horizontal_interlace_) || !this->get_parameter("interlace", vertical_interlace_))
+    if (this->get_parameter("horizontal_interlace", horizontal_interlace_) ||
+        !this->get_parameter("interlace", vertical_interlace_))
     {
       horizontal_interlace_ = this->declare_parameter<int>("horizontal_interlace", 4);
     }
     else if (this->has_parameter("interlace"))
     {
-      RCLCPP_WARN(this->get_logger(), "'interlace' parameter is deprecated. Use horizontal_interlace instead.");
+      RCLCPP_WARN(this->get_logger(),
+                  "'interlace' parameter is deprecated. Use horizontal_interlace instead.");
       horizontal_interlace_ = this->declare_parameter("interlace", 4);
     }
     vertical_interlace_ = this->declare_parameter("vertical_interlace", 1);
@@ -347,15 +358,16 @@ public:
     cloud2_.is_dense = false;
     sensor_msgs::PointCloud2Modifier pc2_modifier(cloud2_);
     pc2_modifier.setPointCloud2Fields(4, "x", 1, sensor_msgs::msg::PointField::FLOAT32, "y", 1,
-                                      sensor_msgs::msg::PointField::FLOAT32, "z", 1, sensor_msgs::msg::PointField::FLOAT32,
-                                      "intensity", 1, sensor_msgs::msg::PointField::FLOAT32);
+                                      sensor_msgs::msg::PointField::FLOAT32, "z", 1,
+                                      sensor_msgs::msg::PointField::FLOAT32, "intensity", 1,
+                                      sensor_msgs::msg::PointField::FLOAT32);
 
     pub_imu_ = this->create_publisher<sensor_msgs::msg::Imu>("imu", 5);
     pub_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("mag", 5);
 
     enable_pc_ = enable_pc2_ = false;
-    cloud_publish_timer_callback_ = this->create_wall_timer(std::chrono::milliseconds(200),
-                                                        std::bind(&Hokuyo3dNode::cbSubscriber, this));
+    cloud_publish_timer_callback_ = this->create_wall_timer(
+        std::chrono::milliseconds(200), std::bind(&Hokuyo3dNode::cbSubscriber, this));
 
     boost::lock_guard<boost::mutex> lock(connect_mutex_);
     pub_pc_ = this->create_publisher<sensor_msgs::msg::PointCloud>("hokuyo_cloud", 5);
@@ -363,6 +375,14 @@ public:
 
     // Start communication with the sensor
     driver_.connect(ip_.c_str(), port_, boost::bind(&Hokuyo3dNode::cbConnect, this, _1));
+
+    // Setup Service 
+    cloud_service_ = this->create_service<hokuyo3d::srv::RequestPointCloud>(
+      "/request_point_cloud_from_hokuyo", std::bind(&Hokuyo3dNode::sendPointCloud, this,
+                                            std::placeholders::_1, std::placeholders::_2));
+    // cloud_service_ = this->create_service<hokuyo3d::srv::RequestPointCloud>(
+    //   "/request_point_cloud_from_hokuyo", std::bind(&sendPointCloud, this,
+    //                                         std::placeholders::_1, std::placeholders::_2));
   }
   ~Hokuyo3dNode()
   {
@@ -374,34 +394,42 @@ public:
   }
   void onParameterEvent(const rcl_interfaces::msg::ParameterEvent::SharedPtr event)
   {
-    for (auto & changed_parameter : event->changed_parameters) {
+    for (auto& changed_parameter : event->changed_parameters)
+    {
       updateParameterValue(changed_parameter);
     }
   }
   void updateParameterValue(const rcl_interfaces::msg::Parameter param)
   {
-    if(param.name == "allow_jump_back")
+    if (param.name == "allow_jump_back")
     {
       allow_jump_back_ = param.value.bool_value;
-    } else if(param.name == "auto_reset")
+    }
+    else if (param.name == "auto_reset")
     {
       auto_reset_ = param.value.bool_value;
-    } else if(param.name == "frame_id")
+    }
+    else if (param.name == "frame_id")
     {
       frame_id_ = param.value.string_value;
-    } else if(param.name == "horizontal_interlace")
+    }
+    else if (param.name == "horizontal_interlace")
     {
       horizontal_interlace_ = param.value.integer_value;
-    } else if(param.name == "imu_frame_id")
+    }
+    else if (param.name == "imu_frame_id")
     {
       imu_frame_id_ = param.value.string_value;
-    } else if(param.name == "ip")
+    }
+    else if (param.name == "ip")
     {
       ip_ = param.value.string_value;
-    } else if(param.name == "mag_frame_id")
+    }
+    else if (param.name == "mag_frame_id")
     {
       mag_frame_id_ = param.value.string_value;
-    } else if(param.name == "output_cycle")
+    }
+    else if (param.name == "output_cycle")
     {
       std::string output_cycle = param.value.string_value;
       if (output_cycle.compare("frame") == 0)
@@ -415,15 +443,19 @@ public:
         RCLCPP_ERROR(this->get_logger(), "Unknown output_cycle value %s", output_cycle.c_str());
         rclcpp::shutdown();
       }
-    } else if(param.name == "port")
+    }
+    else if (param.name == "port")
     {
       port_ = param.value.integer_value;
-    } else if(param.name == "range_min")
+    }
+    else if (param.name == "range_min")
     {
       range_min_ = param.value.double_value;
-    } else if(param.name == "use_sim_time")
+    }
+    else if (param.name == "use_sim_time")
     {
-    } else if(param.name == "vertical_interlace")
+    }
+    else if (param.name == "vertical_interlace")
     {
       vertical_interlace_ = param.value.integer_value;
     }
@@ -462,7 +494,7 @@ public:
     RCLCPP_INFO(this->get_logger(), "Connection closed");
     return false;
   }
-  void cbTimer(const boost::system::error_code &error)
+  void cbTimer(const boost::system::error_code& error)
   {
     if (error)
       return;
@@ -473,20 +505,18 @@ public:
     }
     else
     {
-      timer_.expires_at(
-          timer_.expires_at() +
-          boost::posix_time::milliseconds(500));
+      timer_.expires_at(timer_.expires_at() + boost::posix_time::milliseconds(500));
       timer_.async_wait(boost::bind(&Hokuyo3dNode::cbTimer, this, _1));
     }
   }
   void spin()
   {
     timer_.async_wait(boost::bind(&Hokuyo3dNode::cbTimer, this, _1));
-    boost::thread thread(
-        boost::bind(&boost::asio::io_service::run, &io_));
+    boost::thread thread(boost::bind(&boost::asio::io_service::run, &io_));
 
     rclcpp::executors::MultiThreadedExecutor executor;
-    std::thread executor_thread(std::bind(&rclcpp::executors::MultiThreadedExecutor::spin, &executor));
+    std::thread executor_thread(
+        std::bind(&rclcpp::executors::MultiThreadedExecutor::spin, &executor));
     executor.add_node(this->get_node_base_interface());
     // spinner.start();
     driver_.spin();
@@ -498,6 +528,11 @@ public:
   {
     driver_.requestPing();
     time_ping_ = this->now();
+  }
+  void sendPointCloud(const hokuyo3d::srv::RequestPointCloud::Request::SharedPtr req,
+                      hokuyo3d::srv::RequestPointCloud::Response::SharedPtr res)
+  {
+    res->return_cloud = cloud2_;
   }
 
 protected:
@@ -512,8 +547,9 @@ protected:
   sensor_msgs::msg::MagneticField mag_;
   rclcpp::TimerBase::SharedPtr cloud_publish_timer_callback_;
   std::shared_ptr<rclcpp::SyncParametersClient> parameter_client_;
-  std::shared_ptr<rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent,
-    std::allocator<void>>> parameter_subscription_;
+  std::shared_ptr<rclcpp::Subscription<rcl_interfaces::msg::ParameterEvent, std::allocator<void>>>
+      parameter_subscription_;
+  rclcpp::Service<hokuyo3d::srv::RequestPointCloud>::SharedPtr cloud_service_;
 
   bool enable_pc_;
   bool enable_pc2_;
@@ -553,13 +589,13 @@ protected:
   bool set_auto_reset_;
 };
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<Hokuyo3dNode>();
   // rclcpp::spin_some(node);
   node->spin();
-  
+
   // while(rclcpp::ok())
   // {
   //   rclcpp::spin_some(node);

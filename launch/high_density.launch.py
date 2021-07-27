@@ -21,7 +21,7 @@ def generate_launch_description():
     # Follow node
     hokuyo3d = Node(
         package='hokuyo3d',
-        executable='hokuyo3d',
+        executable='hokuyo3d_node',
         namespace=argument,
         output='screen',
         parameters=[config]

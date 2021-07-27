@@ -22,19 +22,26 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 # find_package(Boost 1.53 REQUIRED system serialization chrono thread)
 
+set(srv_files
+  "srv/RequestPointCloud.srv")
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${srv_files}
+  DEPENDENCIES sensor_msgs)
+
 include_directories(
   include
   ${Boost_INCLUDE_DIRS}
 )
 
-add_executable(${PROJECT_NAME} 
+add_executable(${PROJECT_NAME}_node
   src/hokuyo3d.cpp)
-ament_target_dependencies(${PROJECT_NAME}
+ament_target_dependencies(${PROJECT_NAME}_node
   rclcpp
   sensor_msgs)
-target_link_libraries(${PROJECT_NAME} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_node ${Boost_LIBRARIES})
+rosidl_target_interfaces(${PROJECT_NAME}_node ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
-install(TARGETS ${PROJECT_NAME}
+install(TARGETS ${PROJECT_NAME}_node
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME}/
@@ -44,8 +51,7 @@ install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
 
-ament_export_libraries(${PROJECT_NAME})
-ament_export_dependencies(ament_cmake)
+ament_export_dependencies(ament_cmake rosidl_default_runtime)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
