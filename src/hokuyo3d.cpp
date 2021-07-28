@@ -366,6 +366,7 @@ public:
     pub_mag_ = this->create_publisher<sensor_msgs::msg::MagneticField>("mag", 5);
 
     enable_pc_ = enable_pc2_ = false;
+    enable_pc2_ = true;
     cloud_publish_timer_callback_ = this->create_wall_timer(
         std::chrono::milliseconds(200), std::bind(&Hokuyo3dNode::cbSubscriber, this));
 
