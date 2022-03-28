@@ -54,12 +54,12 @@ class Hokuyo3dNode : public rclcpp::Node
 {
 public:
   void cbPoint(
-      const vssp::Header &header,
-      const vssp::RangeHeader &range_header,
-      const vssp::RangeIndex &range_index,
-      const boost::shared_array<uint16_t> &index,
-      const boost::shared_array<vssp::XYZI> &points,
-      const boost::posix_time::ptime &time_read)
+      const vssp::Header& header,
+      const vssp::RangeHeader& range_header,
+      const vssp::RangeIndex& range_index,
+      const boost::shared_array<uint16_t>& index,
+      const boost::shared_array<vssp::XYZI>& points,
+      const boost::posix_time::ptime& time_read)
   {
     if (timestamp_base_.seconds() == rclcpp::Time(0).seconds())
       return;
@@ -100,7 +100,7 @@ public:
       // Pack PointCloud2 message
       cloud2_.data.resize((cloud2_.width + index[range_index.nspots]) * cloud2_.point_step);
 
-      float *data = reinterpret_cast<float *>(&cloud2_.data[0]);
+      float* data = reinterpret_cast<float*>(&cloud2_.data[0]);
       data += cloud2_.width * cloud2_.point_step / sizeof(float);
       for (int i = 0; i < index[range_index.nspots]; i++)
       {
@@ -156,15 +156,15 @@ public:
     }
   }
   void cbError(
-      const vssp::Header &header,
-      const std::string &message,
-      const boost::posix_time::ptime &time_read)
+      const vssp::Header& header,
+      const std::string& message,
+      const boost::posix_time::ptime& time_read)
   {
     RCLCPP_ERROR(this->get_logger(), "%s", message.c_str());
   }
   void cbPing(
-      const vssp::Header &header,
-      const boost::posix_time::ptime &time_read)
+      const vssp::Header& header,
+      const boost::posix_time::ptime& time_read)
   {
     /*
     const ros::Time now = ros::Time::fromBoost(time_read);
@@ -192,10 +192,10 @@ public:
     RCLCPP_DEBUG(this->get_logger(), "timestamp_base: %lf", timestamp_base_.seconds());
   }
   void cbAux(
-      const vssp::Header &header,
-      const vssp::AuxHeader &aux_header,
-      const boost::shared_array<vssp::Aux> &auxs,
-      const boost::posix_time::ptime &time_read)
+      const vssp::Header& header,
+      const vssp::AuxHeader& aux_header,
+      const boost::shared_array<vssp::Aux>& auxs,
+      const boost::posix_time::ptime& time_read)
   {
     if (timestamp_base_.seconds() == rclcpp::Time(0).seconds())
       return;
@@ -462,7 +462,7 @@ public:
     RCLCPP_INFO(this->get_logger(), "Connection closed");
     return false;
   }
-  void cbTimer(const boost::system::error_code &error)
+  void cbTimer(const boost::system::error_code& error)
   {
     if (error)
       return;
@@ -553,7 +553,7 @@ protected:
   bool set_auto_reset_;
 };
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<Hokuyo3dNode>();
