@@ -166,12 +166,7 @@ public:
       const vssp::Header& header,
       const boost::posix_time::ptime& time_read)
   {
-    /*
-    const ros::Time now = ros::Time::fromBoost(time_read);
-    const ros::Duration delay =
-        ((now - time_ping_) - ros::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001)) * 0.5;
-    const ros::Time base = time_ping_ + delay - ros::Duration(header.received_time_ms * 0.001);
-    */
+
     const rclcpp::Time now = this->now();
     rclcpp::Time delay =
         rclcpp::Time(((now - time_ping_) - rclcpp::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001, 0)).seconds() * 0.5, 0);
@@ -557,13 +552,7 @@ int main(int argc, char** argv)
 {
   rclcpp::init(argc, argv);
   auto node = std::make_shared<Hokuyo3dNode>();
-  // rclcpp::spin_some(node);
   node->spin();
   
-  // while(rclcpp::ok())
-  // {
-  //   rclcpp::spin_some(node);
-  // }
-
   return 1;
 }
