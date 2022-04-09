@@ -167,11 +167,19 @@ public:
       const boost::posix_time::ptime& time_read)
   {
 
-    const rclcpp::Time now = this->now();
+    const auto time_t_from_epoch = time_read - boost::posix_time::from_time_t(0);
+    const auto time_point_chrono = std::chrono::system_clock::from_time_t(time_t_from_epoch.total_seconds()) +
+                          std::chrono::nanoseconds(time_t_from_epoch.fractional_seconds() *
+                                                   (1000000000 / time_t_from_epoch.ticks_per_second()));
+    const auto time_point_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(time_point_chrono).time_since_epoch();
+    const auto duration_ns = std::chrono::duration_cast<std::chrono::milliseconds>(time_point_ns);
+
+    const rclcpp::Time now(duration_ns.count());
+
     rclcpp::Time delay =
-        rclcpp::Time(((now - time_ping_) - rclcpp::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001, 0)).seconds() * 0.5, 0);
+        rclcpp::Time(((now - time_ping_) - rclcpp::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001, 0)).seconds() * 0.5);
         
-    const rclcpp::Time base = rclcpp::Time(time_ping_.seconds() + delay.seconds() - header.received_time_ms * 0.001, 0);
+    const rclcpp::Time base = rclcpp::Time(time_ping_.seconds() + delay.seconds() - header.received_time_ms * 0.001);
     timestamp_base_buffer_.push_back(base);
     if (timestamp_base_buffer_.size() > 5)
       timestamp_base_buffer_.pop_front();
@@ -553,6 +561,6 @@ int main(int argc, char** argv)
   rclcpp::init(argc, argv);
   auto node = std::make_shared<Hokuyo3dNode>();
   node->spin();
-  
+
   return 1;
 }
