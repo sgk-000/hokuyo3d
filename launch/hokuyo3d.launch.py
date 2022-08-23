@@ -18,15 +18,19 @@ def generate_launch_description():
     params_file = LaunchConfiguration("params_file")
     declare_params_file_cmd = DeclareLaunchArgument(
         "params_file",
-        default_value=os.path.join(share_dir, "config", "hokuyo3_params.yaml"),
+        default_value=os.path.join(share_dir, "config", "hokuyo3d_params.yaml"),
         description="Params file for the hokuyo3d node",
     )
     hokuyo3d_node = Node(
         package="hokuyo3d",
-        executable="hokuyo3d_node",
+        executable="hokuyo3d",
         output="screen",
+        # prefix=['xterm -e gdb -ex run --args'],
+        prefix=['gdbserver localhost:3000'],
+        emulate_tty=True,
         parameters=[params_file],
     )
 
+    ld.add_action(declare_params_file_cmd)
     ld.add_action(hokuyo3d_node)
     return ld
