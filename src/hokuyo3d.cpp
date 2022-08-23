@@ -176,9 +176,11 @@ public:
 
     const rclcpp::Time now(duration_ns.count());
 
-    rclcpp::Time delay =
-        rclcpp::Time(((now - time_ping_) - rclcpp::Duration(header.send_time_ms * 0.001 - header.received_time_ms * 0.001, 0)).seconds() * 0.5);
-        
+    std::chrono::milliseconds mili_delay{header.send_time_ms - header.received_time_ms};
+    std::chrono::nanoseconds nano_delay1 = mili_delay;
+    std::chrono::nanoseconds nano_delay2(now.nanoseconds() - time_ping_.nanoseconds());
+    rclcpp::Duration delay((nano_delay2 - nano_delay1) * 0.5);
+    
     const rclcpp::Time base = rclcpp::Time(time_ping_.seconds() + delay.seconds() - header.received_time_ms * 0.001);
     timestamp_base_buffer_.push_back(base);
     if (timestamp_base_buffer_.size() > 5)
@@ -263,7 +265,7 @@ public:
         driver_.setAutoReset(auto_reset_);
       driver_.setHorizontalInterlace(horizontal_interlace_);
       driver_.requestHorizontalTable();
-      driver_.setVerticalInterlace(vertical_interlace_);
+      // driver_.setVerticalInterlace(vertical_interlace_);
       driver_.requestVerticalTable(vertical_interlace_);
       driver_.requestData(true, true);
       driver_.requestAuxData();
