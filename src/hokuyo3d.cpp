@@ -167,21 +167,22 @@ public:
       const boost::posix_time::ptime& time_read)
   {
 
-    const auto time_t_from_epoch = time_read - boost::posix_time::from_time_t(0);
-    const auto time_point_chrono = std::chrono::system_clock::from_time_t(time_t_from_epoch.total_seconds()) +
-                          std::chrono::nanoseconds(time_t_from_epoch.fractional_seconds() *
-                                                   (1000000000 / time_t_from_epoch.ticks_per_second()));
-    const auto time_point_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(time_point_chrono).time_since_epoch();
-    const auto duration_ns = std::chrono::duration_cast<std::chrono::milliseconds>(time_point_ns);
+    // const auto time_t_from_epoch = time_read - boost::posix_time::from_time_t(0);
+    // const auto time_point_chrono = std::chrono::system_clock::from_time_t(time_t_from_epoch.total_seconds()) +
+    //                       std::chrono::nanoseconds(time_t_from_epoch.fractional_seconds() *
+    //                                                (1000000000 / time_t_from_epoch.ticks_per_second()));
+    // const auto time_point_ns = std::chrono::time_point_cast<std::chrono::nanoseconds>(time_point_chrono).time_since_epoch();
+    // const auto duration_ns = std::chrono::duration_cast<std::chrono::milliseconds>(time_point_ns);
 
-    const rclcpp::Time now(duration_ns.count());
+    // const rclcpp::Time now(duration_ns.count());
+    const rclcpp::Time now((time_read - boost::posix_time::from_time_t(0)).total_nanoseconds());
 
     std::chrono::milliseconds mili_delay{header.send_time_ms - header.received_time_ms};
     std::chrono::nanoseconds nano_delay1 = mili_delay;
     std::chrono::nanoseconds nano_delay2(now.nanoseconds() - time_ping_.nanoseconds());
     rclcpp::Duration delay((nano_delay2 - nano_delay1) * 0.5);
     
-    const rclcpp::Time base = rclcpp::Time(time_ping_.seconds() + delay.seconds() - header.received_time_ms * 0.001);
+    const rclcpp::Time base = rclcpp::Time(time_ping_.nanoseconds() + delay.nanoseconds() - (header.received_time_ms * 0.001));
     timestamp_base_buffer_.push_back(base);
     if (timestamp_base_buffer_.size() > 5)
       timestamp_base_buffer_.pop_front();
@@ -299,12 +300,12 @@ public:
 
     if (this->get_parameter("horizontal_interlace", horizontal_interlace_) || !this->get_parameter("interlace", vertical_interlace_))
     {
-      horizontal_interlace_ = this->declare_parameter<int>("horizontal_interlace", 4);
+      horizontal_interlace_ = this->declare_parameter<int>("horizontal_interlace", 1);
     }
     else if (this->has_parameter("interlace"))
     {
       RCLCPP_WARN(this->get_logger(), "'interlace' parameter is deprecated. Use horizontal_interlace instead.");
-      horizontal_interlace_ = this->declare_parameter("interlace", 4);
+      horizontal_interlace_ = this->declare_parameter("interlace", 1);
     }
     vertical_interlace_ = this->declare_parameter("vertical_interlace", 1);
     ip_ = this->declare_parameter("ip", std::string("192.168.0.10"));
